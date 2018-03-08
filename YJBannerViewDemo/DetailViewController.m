@@ -3,17 +3,22 @@
 //  YJBannerViewDemo
 //
 //  Created by YJHou on 2015/5/24.
-//  Copyright © 2015年 地址:https://github.com/YJManager/YJBannerViewOC . All rights reserved.
+//  Copyright © 2015年 Address:https://github.com/stackhou . All rights reserved.
 //
 
 #import "DetailViewController.h"
 #import "YJBannerView.h"
 #import "MainViewModel.h"
+#import "NSArray+YJBannerView.h"
+#import <SDWebImage/UIImageView+WebCache.h>
+#import "DynamicBgViewController.h"
+#import "YJCustomGapCell.h"
 
 @interface DetailViewController () <YJBannerViewDataSource, YJBannerViewDelegate>
 
 @property (nonatomic, strong) YJBannerView *detailBannerView;
 @property (nonatomic, strong) MainViewModel *viewModel;
+@property (nonatomic, strong) YJBannerView *customBannerView; /**< 自定义View 适用于不同尺寸的显示 */
 
 @end
 
@@ -33,7 +38,8 @@
     [super viewWillAppear:animated];
     [self.navigationController.navigationBar setBackgroundImage:[self createImageWithColor:[self colorFromHexRGB:@"2fbff7"] alpha:1] forBarMetrics:UIBarMetricsDefault];
 
-    [self.detailBannerView adjustBannerViewWhenViewWillAppear];
+    [self.detailBannerView adjustBannerViewWhenCardScreen];
+    [self.customBannerView adjustBannerViewWhenCardScreen];
 }
 
 - (void)closeCurrentController {
@@ -43,19 +49,69 @@
 - (void)_setUpDetailMainView{
     
     [self.view addSubview:self.detailBannerView];
+    [self.view addSubview:self.customBannerView];
     
     [self.detailBannerView reloadData];
+    
+    // 每次刷新前清空自定义View
+    [self.customBannerView reloadData];
 }
 
 #pragma mark - DataSource
 - (NSArray *)bannerViewImages:(YJBannerView *)bannerView{
-    return self.viewModel.customBannerViewImages;
+    if (bannerView == self.detailBannerView) {
+        return self.viewModel.customBannerViewImages;
+    }else{
+        return nil;
+    }
+}
+
+- (NSArray *)bannerViewRegistCustomCellClass:(YJBannerView *)bannerView{
+    if (bannerView == self.detailBannerView) {
+        return @[[YJCustomGapCell class]];
+    }
+    return nil;
+}
+
+- (Class)bannerView:(YJBannerView *)bannerView reuseIdentifierForIndex:(NSInteger)index{
+    if (bannerView == self.detailBannerView) {
+        return [YJCustomGapCell class];
+    }
+    return nil;
+}
+
+- (UICollectionViewCell *)bannerView:(YJBannerView *)bannerView customCell:(UICollectionViewCell *)customCell index:(NSInteger)index{
+    if (bannerView == self.detailBannerView) {
+        YJCustomGapCell *cell = (YJCustomGapCell *)customCell;
+        
+        [cell cellWithImagePath:self.viewModel.customBannerViewImages[index]];
+        
+        if (index == 0 || index == 2) {
+            return cell;
+        }
+        return nil;
+    }
+    return nil;
+}
+
+- (void)bannerView:(YJBannerView *)bannerView didSelectItemAtIndex:(NSInteger)index{
+    
+    DynamicBgViewController *vc = [[DynamicBgViewController alloc] init];
+    [self.navigationController pushViewController:vc animated:YES];
+    
+}
+
+- (void)bannerView:(YJBannerView *)bannerView didScrollCurrentIndex:(NSInteger)currentIndex contentOffset:(CGFloat)contentOffset{
+    
+    
 }
 
 #pragma mark - Lazy
 - (YJBannerView *)detailBannerView{
     if (!_detailBannerView) {
-        _detailBannerView = [YJBannerView bannerViewWithFrame:CGRectMake(0, 0, kSCREEN_WIDTH, 180) dataSource:self delegate:self placeholderImageName:@"placeholder" selectorString:@"sd_setImageWithURL:placeholderImage:"];
+        _detailBannerView = [YJBannerView bannerViewWithFrame:CGRectMake(0, 0, kSCREEN_WIDTH, 180) dataSource:self delegate:self emptyImage:[UIImage imageNamed:@"placeholder"] placeholderImage:[UIImage imageNamed:@"placeholder"] selectorString:@"sd_setImageWithURL:placeholderImage:"];
+        _detailBannerView.autoScroll = NO;
+        _detailBannerView.repeatCount = 10;
     }
     return _detailBannerView;
 }
@@ -65,6 +121,16 @@
         _viewModel = [[MainViewModel alloc] init];
     }
     return _viewModel;
+}
+
+- (YJBannerView *)customBannerView{
+    if (!_customBannerView) {
+        _customBannerView = [YJBannerView bannerViewWithFrame:CGRectMake(0, 190, kSCREEN_WIDTH, 180) dataSource:self delegate:self emptyImage:[UIImage imageNamed:@"placeholder"] placeholderImage:[UIImage imageNamed:@"placeholder"] selectorString:@"sd_setImageWithURL:placeholderImage:"];
+        _customBannerView.pageControlStyle = PageControlCustom;
+        _customBannerView.customPageControlHighlightImage = [UIImage imageNamed:@"pageControlCurrentDot"];
+        _customBannerView.customPageControlNormalImage = [UIImage imageNamed:@"pageControlDot"];
+    }
+    return _customBannerView;
 }
 
 - (UIImage *)createImageWithColor:(UIColor *)color alpha:(CGFloat)alpha{
